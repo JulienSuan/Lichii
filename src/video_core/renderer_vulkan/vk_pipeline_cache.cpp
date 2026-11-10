@@ -2035,6 +2035,16 @@ void PipelineCache::EvictUnusedPipelines() {
     if (PreloadAllPipelines()) {
         return;
     }
+    // Local build: EDEN_NX2_NO_PIPELINE_EVICTION=1 keeps every built pipeline for the session, for
+    // hosts with RAM to spare (an evicted pipeline is translated and built again when its place
+    // comes back). Unset, eviction runs as upstream.
+    static const bool no_eviction = [] {
+        const char* value = std::getenv("EDEN_NX2_NO_PIPELINE_EVICTION");
+        return value != nullptr && value[0] == '1';
+    }();
+    if (no_eviction) {
+        return;
+    }
     // Each built pipeline holds ~0.45 MB of driver memory and none was ever destroyed, so it grew
     // with every place a session went (title 1: 1,500 on its title screen alone). One unused for
     // this long is destroyed; rebuilding it later requires a full GPU-thread shader translation

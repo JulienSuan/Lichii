@@ -349,7 +349,14 @@ void TextureCache<P>::ApplyThresholdOverrides(bool log) {
          {std::tuple{"EDEN_NX2_TC_EXPECTED_MIB", &expected_memory, budget_expected},
           std::tuple{"EDEN_NX2_TC_CRITICAL_MIB", &critical_memory, budget_critical}}) {
         if (const char* value = std::getenv(name)) {
-            *target = (std::min)(static_cast<u64>(std::strtoull(value, nullptr, 10)) << 20, limit);
+            // Local build: EDEN_NX2_TC_UNCAPPED=1 takes the override as given, past what the
+            // device budget and the host's commit allow. Unset, the limit applies as upstream.
+            static const bool uncapped = [] {
+                const char* flag = std::getenv("EDEN_NX2_TC_UNCAPPED");
+                return flag != nullptr && flag[0] == '1';
+            }();
+            const u64 wanted = static_cast<u64>(std::strtoull(value, nullptr, 10)) << 20;
+            *target = uncapped ? wanted : (std::min)(wanted, limit);
         }
     }
     expected_memory = (std::min)(expected_memory, critical_memory);
